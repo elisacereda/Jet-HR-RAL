@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Calcolatore RAL → Netto</title>
+
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, Helvetica, sans-serif;
+      background: #f5f6f8;
+      color: #222;
+    }
+
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 40px 20px 60px;
+    }
+
+    h1 {
+      font-size: 34px;
+      margin-bottom: 8px;
+    }
+
+    h2 {
+      margin-top: 0;
+      font-size: 22px;
+    }
+
+    p {
+      line-height: 1.5;
+    }
+
+    .subtitle {
+      color: #666;
+      margin-top: 0;
+      margin-bottom: 28px;
+    }
+
+    .card {
+      background: white;
+      border: 1px solid #ddd;
+      border-radius: 10px;
+      padding: 22px;
+      margin-bottom: 18px;
+    }
+
+    .input-row {
+      display: grid;
+      grid-template-columns: 2fr 1fr 1fr;
+      gap: 12px;
+      align-items: end;
+    }
+
+    label {
+      display: block;
+      font-weight: bold;
+      margin-bottom: 6px;
+      font-size: 14px;
+    }
+
+    input,
+    select,
+    button {
+      width: 100%;
+      box-sizing: border-box;
+      height: 44px;
+      border-radius: 6px;
+      border: 1px solid #bbb;
+      padding: 0 10px;
+      font-size: 15px;
+    }
+
+    button {
+      background: #222;
+      color: white;
+      border: none;
+      cursor: pointer;
+      font-weight: bold;
+    }
+
+    button:hover {
+      background: #000;
+    }
+
+    .assumptions {
+      font-size: 13px;
+      color: #666;
+      margin-top: 12px;
+    }
+
+    #error {
+      display: none;
+      color: #b00020;
+      font-size: 14px;
+      margin-top: 10px;
+    }
+
+    #results {
+      display: none;
+    }
+
+    .summary {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+
+    .summary-box {
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      padding: 18px;
+      background: #fafafa;
+    }
+
+    .summary-box .label {
+      font-size: 13px;
+      color: #666;
+      margin-bottom: 5px;
+    }
+
+    .summary-box .value {
+      font-size: 28px;
+      font-weight: bold;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    td {
+      padding: 11px 0;
+      border-bottom: 1px solid #e5e5e5;
+    }
+
+    td:last-child {
+      text-align: right;
+    }
+
+    .negative {
+      color: #9b1c1c;
+    }
+
+    .positive {
+      color: #1b6e42;
+    }
+
+    .total td {
+      font-weight: bold;
+      font-size: 17px;
+      border-bottom: none;
+      padding-top: 16px;
+    }
+
+    .flow {
+      font-family: monospace;
+      background: #f1f2f4;
+      border-radius: 6px;
+      padding: 12px;
+      overflow-x: auto;
+    }
+
+    ul {
+      line-height: 1.6;
+    }
+
+    .small {
+      font-size: 13px;
+      color: #666;
+    }
+
+    .sources a {
+      color: #222;
+    }
+
+    @media (max-width: 700px) {
+      .input-row,
+      .summary {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <h1>Calcolatore RAL → Netto</h1>
+    <p class="subtitle">
+      Prototipo semplificato per stimare il netto annuale e mensile di un dipendente residente a Milano.
+    </p>
+
+    <div class="card">
+      <div class="input-row">
+        <div>
+          <label for="ral">RAL (€)</label>
+          <input id="ral" type="number" min="1000" step="500" value="35000" />
+        </div>
+
+        <div>
+          <label for="months">Mensilità</label>
+          <select id="months">
+            <option value="12">12</option>
+            <option value="13" selected>13</option>
+            <option value="14">14</option>
+          </select>
+        </div>
+
+        <div>
+          <button id="calculate">Calcola</button>
+        </div>
+      </div>
+
+      <div id="error">Inserire una RAL valida maggiore di zero.</div>
+
+      <p class="assumptions">
+        Ipotesi principali: dipendente privato, tempo indeterminato, residente a Milano,
+        rapporto di lavoro per l'intero anno, nessuna agevolazione particolare.
+      </p>
+    </div>
+
+    <div id="results">
+      <div class="card">
+        <h2>Risultato</h2>
+
+        <div class="summary">
+          <div class="summary-box">
+            <div class="label">Netto annuale stimato</div>
+            <div class="value" id="annualNet">—</div>
+          </div>
+
+          <div class="summary-box">
+            <div class="label">Netto mensile medio</div>
+            <div class="value" id="monthlyNet">—</div>
+            <div class="small" id="monthCaption">su 13 mensilità</div>
+          </div>
+        </div>
+
+        <p class="small" id="netPercentage">—</p>
+      </div>
+
+      <div class="card">
+        <h2>Dettaglio del calcolo</h2>
+
+        <table>
+          <tr>
+            <td>Retribuzione annua lorda</td>
+            <td id="rRal">—</td>
+          </tr>
+
+          <tr>
+            <td>Contributi previdenziali dipendente</td>
+            <td id="rInps" class="negative">—</td>
+          </tr>
+
+          <tr>
+            <td>Imponibile fiscale stimato</td>
+            <td id="rTaxable">—</td>
+          </tr>
+
+          <tr>
+            <td>IRPEF lorda</td>
+            <td id="rGrossIrpef" class="negative">—</td>
+          </tr>
+
+          <tr>
+            <td>Detrazione lavoro dipendente</td>
+            <td id="rDeduction" class="positive">—</td>
+          </tr>
+
+          <tr>
+            <td>IRPEF netta</td>
+            <td id="rNetIrpef" class="negative">—</td>
+          </tr>
+
+          <tr>
+            <td>Addizionale regionale Lombardia</td>
+            <td id="rRegional" class="negative">—</td>
+          </tr>
+
+          <tr>
+            <td>Addizionale comunale Milano</td>
+            <td id="rMunicipal" class="negative">—</td>
+          </tr>
+
+          <tr class="total">
+            <td>Netto annuale stimato</td>
+            <td id="rNet">—</td>
+          </tr>
+        </table>
+      </div>
+
+      <div class="card">
+        <h2>Come ho strutturato il problema</h2>
+
+        <p>
+          Ho scomposto il calcolo in passaggi indipendenti, in modo da poter verificare
+          ogni componente separatamente e modificare facilmente le singole regole.
+        </p>
+
+        <div class="flow">
+          RAL → contributi → imponibile fiscale → IRPEF lorda
+          → detrazione lavoro dipendente → IRPEF netta
+          → addizionali locali → netto
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Semplificazioni adottate</h2>
+
+        <ul>
+          <li>aliquota contributiva dipendente semplificata al 9,19%;</li>
+          <li>nessun familiare a carico;</li>
+          <li>nessun bonus, premio o trattamento integrativo;</li>
+          <li>nessun fondo pensione o altra deduzione personale;</li>
+          <li>nessuna differenza legata a CCNL, settore o qualifica;</li>
+          <li>rapporto di lavoro attivo per tutto l'anno;</li>
+          <li>TFR escluso dal calcolo.</li>
+        </ul>
+
+        <p class="small">
+          Il prototipo serve a rappresentare correttamente la logica di un caso standard,
+          non a sostituire un software payroll o un cedolino reale.
+        </p>
+      </div>
+
+      <div class="card sources">
+        <h2>Fonti</h2>
+
+        <ul>
+          <li>
+            <a href="https://www.normattiva.it/eli/stato/LEGGE/2025/12/30/199/CONSOLIDATED" target="_blank">
+              Normattiva — Legge 30 dicembre 2025, n. 199
+            </a>
+          </li>
+
+          <li>
+            <a href="https://www.regione.lombardia.it/bollo-auto-e-tributi-regionali/red-addizionale-regionale-irpef" target="_blank">
+              Regione Lombardia — Addizionale regionale IRPEF
+            </a>
+          </li>
+
+          <li>
+            <a href="https://www.comune.milano.it/argomenti/tributi/addizionale-comunale-irpef" target="_blank">
+              Comune di Milano — Addizionale comunale IRPEF
+            </a>
+          </li>
+
+          <li>
+            <a href="https://www.inps.it/" target="_blank">
+              INPS — contribuzione previdenziale
+            </a>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const euro = new Intl.NumberFormat("it-IT", {
+      style: "currency",
+      currency: "EUR",
+      maximumFractionDigits: 0
+    });
+
+    /*
+      Funzione generica per applicare aliquote progressive.
+      La uso sia per l'IRPEF sia per l'addizionale regionale.
+    */
+    function calculateProgressiveTax(income, brackets) {
+      let tax = 0;
+      let previousLimit = 0;
+
+      for (const bracket of brackets) {
+        const taxablePart =
+          Math.max(0, Math.min(income, bracket.limit) - previousLimit);
+
+        tax += taxablePart * bracket.rate;
+        previousLimit = bracket.limit;
+
+        if (income <= bracket.limit) {
+          break;
+        }
+      }
+
+      return tax;
+    }
+
+    /*
+      Per mantenere il prototipo semplice assumo una quota contributiva
+      dipendente pari al 9,19% della RAL.
+    */
+    function calculateContributions(ral) {
+      return ral * 0.0919;
+    }
+
+    function calculateGrossIrpef(taxableIncome) {
+      const brackets = [
+        { limit: 28000, rate: 0.23 },
+        { limit: 50000, rate: 0.33 },
+        { limit: Infinity, rate: 0.43 }
+      ];
+
+      return calculateProgressiveTax(taxableIncome, brackets);
+    }
+
+    /*
+      Detrazione standard per lavoro dipendente.
+      Assumo che il lavoratore abbia lavorato per tutto l'anno.
+    */
+    function calculateEmployeeDeduction(income) {
+      if (income <= 0) {
+        return 0;
+      }
+
+      if (income <= 15000) {
+        return 1955;
+      }
+
+      if (income <= 28000) {
+        return 1910 + 1190 * ((28000 - income) / 13000);
+      }
+
+      if (income <= 50000) {
+        return 1910 * ((50000 - income) / 22000);
+      }
+
+      return 0;
+    }
+
+    function calculateRegionalTax(income) {
+      const brackets = [
+        { limit: 15000, rate: 0.0123 },
+        { limit: 28000, rate: 0.0158 },
+        { limit: 50000, rate: 0.0172 },
+        { limit: Infinity, rate: 0.0173 }
+      ];
+
+      return calculateProgressiveTax(income, brackets);
+    }
+
+    function calculateMilanTax(income) {
+      if (income <= 23000) {
+        return 0;
+      }
+
+      return income * 0.008;
+    }
+
+    function calculateSalary(ral, months) {
+      const contributions = calculateContributions(ral);
+      const taxableIncome = Math.max(0, ral - contributions);
+
+      const grossIrpef = calculateGrossIrpef(taxableIncome);
+
+      /*
+        Evito che la detrazione possa superare l'IRPEF lorda
+        nel modello semplificato.
+      */
+      const employeeDeduction = Math.min(
+        grossIrpef,
+        calculateEmployeeDeduction(taxableIncome)
+      );
+
+      const netIrpef = Math.max(0, grossIrpef - employeeDeduction);
+
+      const regionalTax = calculateRegionalTax(taxableIncome);
+      const municipalTax = calculateMilanTax(taxableIncome);
+
+      const annualNet =
+        ral
+        - contributions
+        - netIrpef
+        - regionalTax
+        - municipalTax;
+
+      return {
+        ral,
+        months,
+        contributions,
+        taxableIncome,
+        grossIrpef,
+        employeeDeduction,
+        netIrpef,
+        regionalTax,
+        municipalTax,
+        annualNet,
+        monthlyNet: annualNet / months
+      };
+    }
+
+    function formatNegative(value) {
+      return "− " + euro.format(Math.abs(value));
+    }
+
+    function formatPositive(value) {
+      return "+ " + euro.format(Math.abs(value));
+    }
+
+    function showResults(result) {
+      document.getElementById("results").style.display = "block";
+
+      document.getElementById("annualNet").textContent =
+        euro.format(result.annualNet);
+
+      document.getElementById("monthlyNet").textContent =
+        euro.format(result.monthlyNet);
+
+      document.getElementById("monthCaption").textContent =
+        "su " + result.months + " mensilità";
+
+      const netPercentage = (result.annualNet / result.ral) * 100;
+
+      document.getElementById("netPercentage").textContent =
+        "Il netto stimato corrisponde a circa "
+        + netPercentage.toFixed(1).replace(".", ",")
+        + "% della RAL.";
+
+      document.getElementById("rRal").textContent =
+        euro.format(result.ral);
+
+      document.getElementById("rInps").textContent =
+        formatNegative(result.contributions);
+
+      document.getElementById("rTaxable").textContent =
+        euro.format(result.taxableIncome);
+
+      document.getElementById("rGrossIrpef").textContent =
+        formatNegative(result.grossIrpef);
+
+      document.getElementById("rDeduction").textContent =
+        formatPositive(result.employeeDeduction);
+
+      document.getElementById("rNetIrpef").textContent =
+        formatNegative(result.netIrpef);
+
+      document.getElementById("rRegional").textContent =
+        formatNegative(result.regionalTax);
+
+      document.getElementById("rMunicipal").textContent =
+        formatNegative(result.municipalTax);
+
+      document.getElementById("rNet").textContent =
+        euro.format(result.annualNet);
+    }
+
+    function runCalculation() {
+      const ral = Number(document.getElementById("ral").value);
+      const months = Number(document.getElementById("months").value);
+
+      const error = document.getElementById("error");
+
+      if (!Number.isFinite(ral) || ral <= 0) {
+        error.style.display = "block";
+        document.getElementById("results").style.display = "none";
+        return;
+      }
+
+      error.style.display = "none";
+
+      const result = calculateSalary(ral, months);
+      showResults(result);
+    }
+
+    document
+      .getElementById("calculate")
+      .addEventListener("click", runCalculation);
+
+    document
+      .getElementById("ral")
+      .addEventListener("keydown", function(event) {
+        if (event.key === "Enter") {
+          runCalculation();
+        }
+      });
+
+    runCalculation();
+  </script>
+</body>
+</html>
